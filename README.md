@@ -1,10 +1,12 @@
 # CS 181 Practicals
 Seed repository for practicals in cs181, s18
 
-Welcome to CS181! This repository will house your practical assignments.
+Welcome to CS181! This repository will house your team's code for a given
+practical assignment.
 
 If you are reading this, the name of the repository should be 
-cs181-s18-practicals-YourTeamName. 
+cs181-s18-practicals-YourTeamName. You will make one of these team
+repoistories for each practical.
 
 If you don't know what any of this means, contact a TF. These instructions only apply to your private repo.
 
