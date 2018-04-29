@@ -4,15 +4,15 @@ import numpy.random as npr
 
 from SwingyMonkey import SwingyMonkey
 
-BIN_SIZE_HEIGHT = 25
+BIN_SIZE_HEIGHT = 67
 BIN_SIZE_WIDTH = 100
-NUM_VEL_BINS = 10
-NUM_GRAVITY_BINS = 10
+NUM_VEL_BINS = 3
+NUM_GRAVITY_BINS = 3
 GAMMA = 0.9
 LEARNING_RATE = 0.05
 EPSILON_START = 0.95
 EPSILON_END = 0.05
-EPSILON_DECAY = 3000
+EPSILON_DECAY = 1500
 SCREEN_WIDTH  = 600
 SCREEN_HEIGHT = 400
 
@@ -34,13 +34,11 @@ class Learner(object):
         self.Q_values = np.zeros(
             (2, # actions
              int(SCREEN_WIDTH / BIN_SIZE_WIDTH), # tree dist
-             int(SCREEN_HEIGHT / BIN_SIZE_HEIGHT), # monkey top to tree top
-             int(SCREEN_HEIGHT / BIN_SIZE_HEIGHT),# monkey bottom to tree bottom
-             NUM_VEL_BINS, # monkey vel
+             int(SCREEN_HEIGHT / BIN_SIZE_HEIGHT + 1), # tree top
+             int(SCREEN_HEIGHT / BIN_SIZE_HEIGHT + 1), # tree bottom
+             int(SCREEN_HEIGHT / BIN_SIZE_HEIGHT + 1), # monkey bottom
              NUM_GRAVITY_BINS, # gravity
             2, # velocity pos/neg
-            2, # monkey top above tree top
-            2, # monkey bottom above tree bottom
         ))
 
     def reset(self):
@@ -53,36 +51,25 @@ class Learner(object):
     def get_q_value_indexes(self, state):
         # get this state in terms of Q
         tree_dist = int(state['tree']['dist'] / BIN_SIZE_WIDTH)
-        tree_top = state['tree']['top']
-        tree_bot = state['tree']['bot']
-        monkey_top = state['monkey']['top']
-        monkey_bot = state['monkey']['bot']
+        tree_top = int(state['tree']['top'] / BIN_SIZE_HEIGHT)
+        tree_bot = int(state['tree']['bot'] / BIN_SIZE_HEIGHT)
+        # monkey_top = int(state['monkey']['top'] / BIN_SIZE_HEIGHT)
+        monkey_bot = int(state['monkey']['bot'] / BIN_SIZE_HEIGHT)
 
         monkey_vel = state['monkey']['vel']
         vel_pos = int(monkey_vel >= 0)
-        monkey_vel = abs(monkey_vel)
-        monkey_vel_idx = int(monkey_vel / NUM_VEL_BINS)
-        gravity = int(state['gravity'] / NUM_GRAVITY_BINS)
+        # monkey_vel = abs(monkey_vel)
+        # monkey_vel_idx = min(int(monkey_vel / NUM_VEL_BINS), NUM_VEL_BINS - 1)
+        gravity = min(int(state['gravity'] / NUM_GRAVITY_BINS), NUM_GRAVITY_BINS - 1)
 
-        monkey_top_to_tree_top = tree_top - monkey_top
-        monkey_top_below = int(monkey_top_to_tree_top >= 0)
-        monkey_top_to_tree_top = int(abs(monkey_top_to_tree_top) / BIN_SIZE_HEIGHT)
-
-        monkey_bot_to_tree_bot = monkey_bot - tree_bot
-        monkey_bot_above = int(monkey_bot_to_tree_bot >= 0)
-        monkey_bot_to_tree_bot = int(abs(monkey_bot_to_tree_bot) / BIN_SIZE_HEIGHT)
-
-        return (tree_dist, monkey_top_to_tree_top, monkey_bot_to_tree_bot, monkey_vel_idx, gravity, vel_pos, monkey_top_below, monkey_bot_above)
-        # return (tree_dist, tree_top, tree_bot, monkey_top, monkey_bot, monkey_vel_idx, gravity)
+        return (tree_dist, tree_top, tree_bot, monkey_bot, gravity, vel_pos)
 
     def get_q_values(self, state):
-        # tree_dist, tree_top, tree_bot, monkey_top, monkey_bot, monkey_vel_idx, gravity = self.get_q_value_indexes(state)
-        tree_dist, monkey_top_to_tree_top, monkey_bot_to_tree_bot, monkey_vel_idx, gravity, vel_pos, monkey_top_below, monkey_bot_above = self.get_q_value_indexes(state)
+        tree_dist, tree_top, tree_bot, monkey_bot, gravity, vel_pos = self.get_q_value_indexes(state)
 
-        # no_jump_q_val = self.Q_values[0][tree_dist][tree_top][tree_bot][monkey_vel_idx][monkey_top][monkey_bot][gravity]
-        # jump_q_val = self.Q_values[1][tree_dist][tree_top][tree_bot][monkey_vel_idx][monkey_top][monkey_bot][gravity]
-        no_jump_q_val = self.Q_values[0][tree_dist][monkey_top_to_tree_top][monkey_bot_to_tree_bot][monkey_vel_idx][gravity][vel_pos][monkey_top_below][monkey_bot_above]
-        jump_q_val = self.Q_values[1][tree_dist][monkey_top_to_tree_top][monkey_bot_to_tree_bot][monkey_vel_idx][gravity][vel_pos][monkey_top_below][monkey_bot_above]
+        no_jump_q_val = self.Q_values[0][tree_dist][tree_top][tree_bot][monkey_bot][gravity][vel_pos]
+        jump_q_val = self.Q_values[1][tree_dist][tree_top][tree_bot][monkey_bot][gravity][vel_pos]
+        print("yes", jump_q_val, "no", no_jump_q_val)
         return (no_jump_q_val, jump_q_val)
 
     def action_callback(self, state):
@@ -132,12 +119,12 @@ class Learner(object):
             new_action_value = no_jump_q_val
 
         # infor from previous state
-        tree_dist, monkey_top_to_tree_top, monkey_bot_to_tree_bot, monkey_vel_idx, gravity, vel_pos, monkey_top_below, monkey_bot_above = self.get_q_value_indexes(state)
+        tree_dist, tree_top, tree_bot, monkey_bot, gravity, vel_pos = self.get_q_value_indexes(self.last_state)
         # value from last state
-        last_action_value = self.Q_values[self.last_action][tree_dist][monkey_top_to_tree_top][monkey_bot_to_tree_bot][monkey_vel_idx][gravity][vel_pos][monkey_top_below][monkey_bot_above]
+        last_action_value = self.Q_values[self.last_action][tree_dist][tree_top][tree_bot][monkey_bot][gravity][vel_pos]
         # You might do some learning here based on the current state and the last state.
         # update q table
-        self.Q_values[self.last_action][tree_dist][monkey_top_to_tree_top][monkey_bot_to_tree_bot][monkey_vel_idx][gravity][vel_pos][monkey_top_below][monkey_bot_above] = \
+        self.Q_values[self.last_action][tree_dist][tree_top][tree_bot][monkey_bot][gravity][vel_pos] = \
             last_action_value + (LEARNING_RATE * (self.last_reward + (GAMMA * new_action_value) - last_action_value))
 
         # You'll need to select and action and return it.
