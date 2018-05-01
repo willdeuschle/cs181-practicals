@@ -11,13 +11,14 @@ from copy import deepcopy
 from torch import optim
 from collections import namedtuple
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 GAMMA = 0.999
 
 # borrowed from pytorch
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
+# this is taken from a pytorch example, we didn't end up using this stuff
 class ReplayMemory(object):
 
     def __init__(self, capacity):
@@ -61,6 +62,7 @@ class QNet(nn.Module):
     def forward(self, x):
         return self.layers(x)
     def train(self):
+        # this is taken from a pytorch example, we didn't end up using this stuff
         if len(self.memory) < BATCH_SIZE:
               return
         transitions = self.memory.sample(BATCH_SIZE)
@@ -102,7 +104,7 @@ class QNet(nn.Module):
     def do_backprop(self, net_out, target):
         # self.optimizer.zero_grad()
         loss = self.criterion(net_out, target)
-        print("what is loss", loss)
+        # print("what is loss", loss)
         loss.backward()
         self.optimizer.step()
         return
